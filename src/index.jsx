@@ -1,4 +1,5 @@
 import api, { route } from "@forge/api";
+import { tsdPropertiesToLabels } from "./helper.mjs"
 
 export async function run(event, context) {
   if (!event) {
@@ -37,19 +38,5 @@ async function convertSummaryToLabels(pageId) {
 
   // 3. extract properties
   const xhtml = responseJson["body"]["storage"]["value"]
-  const parser = new DOMParser();
-  const xmlDoc = parser.parseFromString(xhtml, "text/xml");
-  //  const { document } = (new JSDOM(xhtml)).window;
-  // <ac:structured-macro ac:name="details" /> is the Page properties Macro
-  const macros = xmlDoc.querySelectorAll('ac\\:structured-macro[ac\\:name="details"]');
-  if (macros.length === 0) {
-    console.error("There is no properties in this page!")
-    return
-  }
-  for (const macro of macros) {
-    const rows = macro.querySelectorAll("table tr")
-    for (const tr of rows) {
-      console.log(`${tr.querySelector("th").textContent}:  ${tr.querySelector("td").textContent}`)
-    }
-  }
+  console.info(tsdPropertiesToLabels(xhtml))
 }
