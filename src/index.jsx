@@ -26,10 +26,31 @@ async function convertSummaryToLabels(pageId) {
     console.error(await response.text());
     return;
   }
+
+  // 2. extract labels
+  console.error(`Response: ${response.status} ${response.statusText}`);
   const responseJson = await response.json()
   const labels = responseJson["metadata"]["labels"]["results"].map(item => item["label"])
   if (!labels.includes('se-tsd') && !labels.includes('se-opportunity')) {
     console.error("This is not a valid TSD page!")
     return
+  }
+
+  // 3. extract properties
+  const xhtml = json["body"]["storage"]["value"]
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xhtml, "text/xml");
+  //  const { document } = (new JSDOM(xhtml)).window;
+  // <ac:structured-macro ac:name="details" /> is the Page properties Macro
+  const macros = xmlDoc.querySelectorAll('ac\\:structured-macro[ac\\:name="details"]');
+  if (macros.length === 0) {
+    console.error("There is no properties in this page!")
+    return
+  }
+  for (const macro of macros) {
+    const rows = macro.querySelectorAll("table tr")
+    for (const tr of rows) {
+      console.log(`${tr.querySelector("th").textContent}:  ${tr.querySelector("td").textContent}`)
+    }
   }
 }
