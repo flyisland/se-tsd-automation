@@ -28,7 +28,6 @@ async function convertSummaryToLabels(pageId) {
   }
 
   // 2. extract labels
-  console.error(`Response: ${response.status} ${response.statusText}`);
   const responseJson = await response.json()
   const labels = responseJson["metadata"]["labels"]["results"].map(item => item["label"])
   if (!labels.includes('se-tsd') && !labels.includes('se-opportunity')) {
@@ -37,7 +36,7 @@ async function convertSummaryToLabels(pageId) {
   }
 
   // 3. extract properties
-  const xhtml = json["body"]["storage"]["value"]
+  const xhtml = responseJson["body"]["storage"]["value"]
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xhtml, "text/xml");
   //  const { document } = (new JSDOM(xhtml)).window;
