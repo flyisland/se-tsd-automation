@@ -1,5 +1,5 @@
 import api, { route } from "@forge/api";
-import { setTSDLabels } from "./label.mjs"
+import { analyzePropertiesAndLabels } from "./label.mjs"
 
 export async function run(event, context) {
   if (!event) {
@@ -15,7 +15,9 @@ export async function run(event, context) {
       if (!responseJson) {
         return
       }
-      await setTSDLabels(responseJson)
+      const { labelsToRemove, labelsToAdd } = await analyzePropertiesAndLabels(responseJson)
+      console.log("labelsToRemove:", labelsToRemove)
+      console.log("labelsToAdd:", labelsToAdd)
     }
   }
 }

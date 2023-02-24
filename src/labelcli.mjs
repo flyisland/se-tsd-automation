@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import { setTSDLabels } from "./label.mjs"
+import { analyzePropertiesAndLabels } from "./label.mjs"
 
 async function main() {
   const args = process.argv;
@@ -15,15 +15,17 @@ async function main() {
     console.error("System environment variable 'FORGE_API_TOKEN' is NOT found")
     return
   }
-  const url = `https://${args[2]}.atlassian.net/wiki/rest/api/content/${args[3]}?expand=metadata.labels,body.storage`
-  const responseJson = await fetchPageContent(url)
+  const responseJson = await fetchPageContent(args[2], args[3])
   if (!responseJson) {
     return
   }
-  await setTSDLabels(responseJson)
+  const { labelsToRemove, labelsToAdd } = await analyzePropertiesAndLabels(responseJson)
+  console.log("labelsToRemove:", labelsToRemove)
+  console.log("labelsToAdd:", labelsToAdd)
 }
 
-async function fetchPageContent(url) {
+async function fetchPageContent(domainPrefix, pageId) {
+  const url = `https://${domainPrefix}.atlassian.net/wiki/rest/api/content/${pageId}?expand=metadata.labels,body.storage`
   console.error(`Fetching page "${url}"`)
   const response = await fetch(url, {
     method: 'GET',
