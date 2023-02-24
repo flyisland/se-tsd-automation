@@ -1,0 +1,16 @@
+modules:
+  trigger:
+    - key: se-oppts-automation-hello-world
+      function: main
+      events:
+        - avi:confluence:created:page
+        - avi:confluence:updated:page
+  function:
+    - key: main
+      handler: index.run
+app:
+  id: ari:cloud:ecosystem::app/a8c88692-519f-4d25-968c-4dce40ddd444
+permissions:
+  scopes:
+    - read:confluence-content.summary
+    - read:page:confluence
