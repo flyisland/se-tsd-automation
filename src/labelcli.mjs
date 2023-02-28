@@ -1,36 +1,24 @@
 import fetch from 'node-fetch';
 import { analyzePropertiesAndLabels } from "./label.mjs"
 
-async function main() {
-  const args = process.argv;
-  if (args.length !== 4) {
-    console.error("Usage: node labelcli.mjs {domain-prefix} {page-id}");
-    return
-  }
-  if (!process.env.FORGE_EMAIL) {
-    console.error("System environment variable 'FORGE_EMAIL' is NOT found")
-    return
-  }
-  if (!process.env.FORGE_API_TOKEN) {
-    console.error("System environment variable 'FORGE_API_TOKEN' is NOT found")
-    return
-  }
-  const responseJson = await fetchPageContent(args[2], args[3])
+export async function labelcli(options) {
+  const responseJson = await fetchPageContent(options)
   if (!responseJson) {
     return
   }
+  console.info(`"${responseJson.title}"`)
   const { labelsToRemove, labelsToAdd } = await analyzePropertiesAndLabels(responseJson)
-  console.log("labelsToRemove:", labelsToRemove)
-  console.log("labelsToAdd:", labelsToAdd)
+  console.info("labelsToRemove:", labelsToRemove)
+  console.info("labelsToAdd:", labelsToAdd)
 }
 
-async function fetchPageContent(domainPrefix, pageId) {
-  const url = `https://${domainPrefix}.atlassian.net/wiki/rest/api/content/${pageId}?expand=metadata.labels,body.storage`
-  console.error(`Fetching page "${url}"`)
+async function fetchPageContent(options) {
+  const url = `https://${options.domain}.atlassian.net/wiki/rest/api/content/${options.pageId}?expand=metadata.labels,body.storage`
+  console.debug(`Fetching page "${url}"`)
   const response = await fetch(url, {
     method: 'GET',
     headers: {
-      'Authorization': `Basic ${Buffer.from(`${process.env.FORGE_EMAIL}:${process.env.FORGE_API_TOKEN}`).toString('base64')}`,
+      'Authorization': `Basic ${Buffer.from(`${options.forgeEmail}:${options.forgeApiToken}`).toString('base64')}`,
       'Accept': 'application/json'
     }
   });
@@ -41,5 +29,3 @@ async function fetchPageContent(domainPrefix, pageId) {
   }
   return await response.json()
 }
-
-main();
