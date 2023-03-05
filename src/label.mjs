@@ -48,3 +48,9 @@ export async function analyzePropertiesAndLabels(responseJson) {
 
   return { labelsToRemove, labelsToAdd }
 }
+
+export function toLabelsBody(labels) {
+  const out = []
+  labels.forEach(name => out.push({ prefix: "global", name }));
+  return out
+}
