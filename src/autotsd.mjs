@@ -18,6 +18,7 @@ program.command("label")
   .action((options) => {
     if (!options.pageId && !options.all) {
       console.error("Either --page-id or --all must be specified")
+      return
     }
     labelcli(options);
   });
