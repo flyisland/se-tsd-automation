@@ -23,6 +23,8 @@ export class LabelOperator {
   run() {
     if (this.options.pageId) {
       this.updateLabelsForPage(this.options.pageId)
+        .catch(err => console.error(err))
+
     } else if (this.options.all) {
       this.updateLabelsForAllPages()
     }
@@ -49,17 +51,16 @@ export class LabelOperator {
   }
 
   updateLabelsForPage(pageId) {
-    this.fetchPageContent(pageId)
+    return this.fetchPageContent(pageId)
       .then(response => response.json())
       .then(responseJson => {
         console.info(`Title: ${responseJson.title}`)
         return analyzePropertiesAndLabels(responseJson)
       })
       .then(labels => Promise.all([this.addLabels(pageId, labels.labelsToAdd), this.removeLabels(pageId, labels.labelsToRemove)]))
-      .catch(err => console.error(err))
   }
 
-  async requestConfluence(method, path, expectedCode, body = {}) {
+  requestConfluence(method, path, expectedCode, body = {}) {
     const url = this.baseUrl + path
     console.debug(`${method} ${url}`)
     const requestOpts = {
@@ -72,7 +73,7 @@ export class LabelOperator {
       ...body,
     }
     return fetch(url, requestOpts)
-      .then(async response => {
+      .then(response => {
         if (response.status !== expectedCode) {
           return response.text()
             .then(errorMsg => {
