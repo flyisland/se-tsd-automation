@@ -32,7 +32,7 @@ export class LabelOperator {
         return analyzePropertiesAndLabels(responseJson)
       })
       .then(labels => Promise.all([this.addLabels(pageId, labels.labelsToAdd), this.removeLabels(pageId, labels.labelsToRemove)]))
-      .catch(err => console.error(`ERROR: ${err}`))
+      .catch(err => console.error(err))
   }
 
   handleAllPages() {
@@ -54,7 +54,12 @@ export class LabelOperator {
     return fetch(url, requestOpts)
       .then(async response => {
         if (response.status !== expectedCode) {
-          throw makeHTTPError(method, url, response)
+          return response.text()
+            .then(errorMsg => {
+              throw new Error(`${method} ${url}
+->${response.status} ${response.statusText}
+->${errorMsg}`)
+            })
         }
         return response
       })
@@ -70,7 +75,7 @@ export class LabelOperator {
     if (labelsToAdd.length === 0) { return }
     const bodyData = toLabelsBody(labelsToAdd)
     const path = `/wiki/rest/api/content/${pageId}/label`
-    return this.requestConfluence("POST", path, 204, { body: JSON.stringify(bodyData) })
+    return this.requestConfluence("POST", path, 200, { body: JSON.stringify(bodyData) })
   }
 
   removeLabels(pageId, labelsToRemove) {
@@ -80,13 +85,6 @@ export class LabelOperator {
       return this.requestConfluence("DELETE", path, 204)
     }))
   }
-}
-
-async function makeHTTPError(method, url, response) {
-  const err = `ERROR: ${method} ${url}
-  ${response.status} ${response.statusText}
-  ${await response.text()}`
-  return Error(err)
 }
 
 async function handleAllTSDs(options) {
