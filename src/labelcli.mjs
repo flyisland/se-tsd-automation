@@ -50,17 +50,15 @@ export class LabelOperator {
       })
   }
 
-  updateLabelsForPage(pageId) {
-    return this.fetchPageContent(pageId)
-      .then(response => response.json())
-      .then(responseJson => {
-        console.info(`Title: ${responseJson.title}`)
-        return analyzePropertiesAndLabels(responseJson)
-      })
-      .then(labels => Promise.all([this.addLabels(pageId, labels.labelsToAdd), this.removeLabels(pageId, labels.labelsToRemove)]))
+  async updateLabelsForPage(pageId) {
+    const response = await this.fetchPageContent(pageId);
+    const responseJson = await response.json();
+    console.info(`Title: ${responseJson.title}`);
+    const labels = analyzePropertiesAndLabels(responseJson);
+    return await Promise.all([this.addLabels(pageId, labels.labelsToAdd), this.removeLabels(pageId, labels.labelsToRemove)]);
   }
 
-  requestConfluence(method, path, expectedCode, body = {}) {
+  async requestConfluence(method, path, expectedCode, body = {}) {
     const url = this.baseUrl + path
     console.debug(`${method} ${url}`)
     const requestOpts = {
@@ -72,18 +70,16 @@ export class LabelOperator {
       agent: this.agent,
       ...body,
     }
-    return fetch(url, requestOpts)
-      .then(response => {
-        if (response.status !== expectedCode) {
-          return response.text()
-            .then(errorMsg => {
-              throw new Error(`${method} ${url}
+    const response = await fetch(url, requestOpts);
+    if (response.status !== expectedCode) {
+      return response.text()
+        .then(errorMsg => {
+          throw new Error(`${method} ${url}
 ->${response.status} ${response.statusText}
-->${errorMsg}`)
-            })
-        }
-        return response
-      })
+->${errorMsg}`);
+        });
+    }
+    return response;
   }
 
   fetchPageContent(pageId) {

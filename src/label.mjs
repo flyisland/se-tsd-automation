@@ -30,7 +30,7 @@ function tsdPropertiesToLabels(xhtml) {
   return result
 }
 
-export async function analyzePropertiesAndLabels(responseJson) {
+export function analyzePropertiesAndLabels(responseJson) {
   // extract existed labels
   const labels = responseJson["metadata"]["labels"]["results"].map(item => item["label"])
   if (!labels.includes('se-tsd') && !labels.includes('se-opportunity')) {
