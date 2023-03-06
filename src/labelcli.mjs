@@ -1,5 +1,83 @@
 import fetch from 'node-fetch';
+import https from 'node:https';
 import { analyzePropertiesAndLabels, toLabelsBody } from "./label.mjs"
+
+
+export class LabelOperator {
+  constructor(options) {
+    this.options = options
+
+    this.baseUrl = `https://${options.domain}.atlassian.net`
+    this.fetchOptions = {
+      headers: {
+        'Authorization': `Basic ${Buffer.from(`${options.forgeEmail}:${options.forgeApiToken}`).toString('base64')}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      agent: new https.Agent({ keepAlive: true })
+    }
+  }
+
+  run() {
+    this.updateLabelsForPage(this.options.pageId)
+  }
+
+  updateLabelsForPage(pageId) {
+    this.fetchPageContent(pageId)
+      .then(responseJson => {
+        console.info(`Title: ${responseJson.title}`)
+        return analyzePropertiesAndLabels(responseJson)
+      })
+      .then(labels => Promise.all([this.addLabels(pageId, labels.labelsToAdd), this.removeLabels(pageId, labels.labelsToRemove)]))
+      .catch(err => console.error(`ERROR: ${err}`))
+  }
+
+  handleAllPages() {
+
+  }
+
+  async requestConfluence(method, path, expectedCode, body = {}) {
+    const url = this.baseUrl + path
+    console.debug(`${method} ${url}`)
+    const requestOpts = { method, ...this.fetchOptions, ...body }
+    console.debug(requestOpts)
+    return fetch(url, requestOpts)
+      .then(async response => {
+        if (response.status !== expectedCode) {
+          throw makeHTTPError(method, url, response)
+        }
+        return response.json()
+      })
+  }
+
+  fetchPageContent(pageId) {
+    const path = `/wiki/rest/api/content/${pageId}?expand=metadata.labels,body.storage`
+    return this.requestConfluence("GET", path, 200)
+  }
+
+  addLabels(pageId, labelsToAdd) {
+    console.info("labelsToAdd:", JSON.stringify(labelsToAdd))
+    if (labelsToAdd.length === 0) { return }
+    const bodyData = toLabelsBody(labelsToAdd)
+    const path = `/wiki/rest/api/content/${pageId}/label`
+    return this.requestConfluence("POST", path, 204, { body: JSON.stringify(bodyData) })
+  }
+
+  removeLabels(pageId, labelsToRemove) {
+    console.info("labelsToRemove:", JSON.stringify(labelsToRemove))
+    return Promise.all(labelsToRemove.map(label => {
+      const path = `/wiki/rest/api/content/${pageId}/label/${label}`
+      return this.requestConfluence("DELETE", path, 204)
+    }))
+  }
+}
+
+async function makeHTTPError(method, url, response) {
+  const err = `ERROR: ${method} ${url}
+  ${response.status} ${response.statusText}
+  ${await response.text()}`
+  return Error(err)
+}
 
 export async function labelcli(options) {
   if (options.all) {
@@ -24,13 +102,15 @@ export async function labelcli(options) {
 async function fetchPageContent(options) {
   const url = `https://${options.domain}.atlassian.net/wiki/rest/api/content/${options.pageId}?expand=metadata.labels,body.storage`
   console.debug(url)
-  const response = await fetch(url, {
+  const requestOpts = {
     method: 'GET',
     headers: {
       'Authorization': `Basic ${Buffer.from(`${options.forgeEmail}:${options.forgeApiToken}`).toString('base64')}`,
       'Accept': 'application/json'
     }
-  });
+  }
+  console.debug(requestOpts)
+  const response = await fetch(url, requestOpts);
   if (response.status !== 200) {
     console.error(`Response: ${response.status} ${response.statusText}`);
     console.error(await response.text());

@@ -1,5 +1,5 @@
 import { Command, Option } from "commander";
-import { labelcli } from "./labelcli.mjs"
+import { LabelOperator, labelcli } from "./labelcli.mjs"
 
 const program = new Command();
 
@@ -20,7 +20,10 @@ program.command("label")
       console.error("Either --page-id or --all must be specified")
       return
     }
-    labelcli(options);
+    //labelcli(options);
+
+    const labelOperator = new LabelOperator(options)
+    labelOperator.run()
   });
 
 program.parse();
