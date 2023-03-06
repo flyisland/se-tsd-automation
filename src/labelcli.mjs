@@ -21,20 +21,22 @@ export class LabelOperator {
   }
 
   run() {
-    if (this.options.pageId) {
-      this.updateLabelsForPage(this.options.pageId)
-        .catch(err => console.error(err))
-
-    } else if (this.options.all) {
-      this.updateLabelsForAllPages()
+    try {
+      if (this.options.pageId) {
+        this.updateLabelsForPage(this.options.pageId)
+      } else if (this.options.all) {
+        this.updateLabelsForAllPages()
+      }
+    } catch (error) {
+      console.error(error)
     }
   }
 
   updateLabelsForAllPages() {
-    const cql = 'space=AT and type=page and (label="se-opportunity" or label="se-tsd")'
+    const cql = 'space=AT and type=page and label=test and (label="se-opportunity" or label="se-tsd")'
     let path = encodeURI(`/rest/api/content/search?cql=${cql}&limit=50`)
     this.fetchAllPages(path)
-      .then(results => results.forEach(page => console.info(`${page.id}: ${page.title}`)))
+      .then(results => Promise.all(results.map(page => this.updateLabelsForPage(page.id))))
   }
 
   fetchAllPages(path, results = []) {
