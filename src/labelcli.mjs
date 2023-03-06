@@ -2,6 +2,9 @@ import fetch from 'node-fetch';
 import { analyzePropertiesAndLabels, toLabelsBody } from "./label.mjs"
 
 export async function labelcli(options) {
+  if (options.all) {
+    return handleAllTSDs(options)
+  }
   const responseJson = await fetchPageContent(options)
   if (!responseJson) {
     return
@@ -73,4 +76,36 @@ async function removeLabels(options, labelsToRemove) {
       return null;
     }
   });
+}
+
+async function handleAllTSDs(options) {
+  const cql = 'space=AT and type=page and (label="se-opportunity" or label="se-tsd")'
+  let url = encodeURI(`https://${options.domain}.atlassian.net/wiki/rest/api/content/search?cql=${cql}&limit=50`)
+  do {
+    const responseJson = await cqlSearch(options, url)
+    responseJson.results.forEach(page => console.info(`${page.id}: ${page.title}`))
+    console.info(`start: ${responseJson.start}, limit: ${responseJson.limit}, size: ${responseJson.size}`)
+    if (responseJson._links.next) {
+      url = responseJson._links.base + responseJson._links.next
+    } else {
+      url = undefined
+    }
+  } while (url)
+}
+
+async function cqlSearch(options, url) {
+  console.debug(url)
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Basic ${Buffer.from(`${options.forgeEmail}:${options.forgeApiToken}`).toString('base64')}`,
+      'Accept': 'application/json'
+    }
+  });
+  if (response.status !== 200) {
+    console.error(`Response: ${response.status} ${response.statusText}`);
+    console.error(await response.text());
+    return null;
+  }
+  return await response.json()
 }
