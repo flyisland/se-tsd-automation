@@ -7,7 +7,7 @@ modules:
         - avi:confluence:updated:page
   function:
     - key: main
-      handler: index.run
+      handler: trigger.run
 app:
   id: ari:cloud:ecosystem::app/a8c88692-519f-4d25-968c-4dce40ddd444
 permissions:

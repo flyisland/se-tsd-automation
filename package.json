@@ -1,7 +1,7 @@
 {
   "name": "product-trigger",
   "version": "1.0.9",
-  "main": "index.js",
+  "main": "trigger.js",
   "license": "MIT",
   "private": true,
   "scripts": {
