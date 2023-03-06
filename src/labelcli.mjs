@@ -2,20 +2,22 @@ import fetch from 'node-fetch';
 import https from 'node:https';
 import { analyzePropertiesAndLabels, toLabelsBody } from "./label.mjs"
 
+const METHOD_TYPES = {
+  GET: { Accept: 'application/json', },
+  POST: {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  },
+  DELETE: {},
+}
 
 export class LabelOperator {
   constructor(options) {
     this.options = options
 
     this.baseUrl = `https://${options.domain}.atlassian.net`
-    this.fetchOptions = {
-      headers: {
-        'Authorization': `Basic ${Buffer.from(`${options.forgeEmail}:${options.forgeApiToken}`).toString('base64')}`,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      agent: new https.Agent({ keepAlive: true })
-    }
+    this.Authorization = `Basic ${Buffer.from(`${options.forgeEmail}:${options.forgeApiToken}`).toString('base64')}`
+    this.agent = new https.Agent({ keepAlive: true })
   }
 
   run() {
@@ -24,6 +26,7 @@ export class LabelOperator {
 
   updateLabelsForPage(pageId) {
     this.fetchPageContent(pageId)
+      .then(response => response.json())
       .then(responseJson => {
         console.info(`Title: ${responseJson.title}`)
         return analyzePropertiesAndLabels(responseJson)
@@ -39,14 +42,21 @@ export class LabelOperator {
   async requestConfluence(method, path, expectedCode, body = {}) {
     const url = this.baseUrl + path
     console.debug(`${method} ${url}`)
-    const requestOpts = { method, ...this.fetchOptions, ...body }
-    console.debug(requestOpts)
+    const requestOpts = {
+      method,
+      headers: {
+        Authorization: this.Authorization,
+        ...METHOD_TYPES[method],
+      },
+      agent: this.agent,
+      ...body,
+    }
     return fetch(url, requestOpts)
       .then(async response => {
         if (response.status !== expectedCode) {
           throw makeHTTPError(method, url, response)
         }
-        return response.json()
+        return response
       })
   }
 
