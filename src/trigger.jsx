@@ -1,5 +1,5 @@
 import api, { route } from "@forge/api";
-import { analyzePropertiesAndLabels } from "./label.mjs"
+import { LabelOperator, METHOD_TYPES } from "./label.mjs"
 
 export async function run(event, context) {
   if (!event) {
@@ -11,27 +11,35 @@ export async function run(event, context) {
     } else {
       const pageId = event["content"]["id"]
       console.info(`Page "${pageId}/${event["content"]["title"]}" is ${event["eventType"].split(":")[2]}`)
-      const responseJson = await fetchPageContent(pageId)
-      if (!responseJson) {
-        return
-      }
-      const { labelsToRemove, labelsToAdd } = await analyzePropertiesAndLabels(responseJson)
-      console.log("labelsToRemove:", labelsToRemove)
-      console.log("labelsToAdd:", labelsToAdd)
+      const triggerOperator = new TriggerOperator()
+      triggerOperator.updateLabelsForPage(pageId)
     }
   }
 }
 
-async function fetchPageContent(pageId) {
-  const propUrl = route`/wiki/rest/api/content/${pageId}?expand=metadata.labels,body.storage`
-  const response = await api.asApp().requestConfluence(propUrl, {
-    headers: { 'Accept': 'application/json' }
-  });
-  if (response.status !== 200) {
-    console.error(`Response: ${response.status} ${response.statusText}`);
-    console.error(await response.text());
-    return;
+class TriggerOperator extends LabelOperator {
+  init(options) {
+    this.baseUrl = `/wiki`
   }
-  const responseJson = await response.json()
-  return responseJson
+
+  async requestConfluence(method, path, expectedCode, body = {}) {
+    const routeUrl = route`${this.baseUrl}${path}`
+    console.debug(`${method}: ${routeUrl.value}`)
+    const response = await api.asApp().requestConfluence(routeUrl, {
+      method,
+      headers: {
+        ...METHOD_TYPES[method],
+      },
+      ...body,
+    });
+    if (response.status !== expectedCode) {
+      return response.text()
+        .then(errorMsg => {
+          throw new Error(`${method} ${url}
+->${response.status} ${response.statusText}
+->${errorMsg}`);
+        });
+    }
+    return response;
+  }
 }
