@@ -1,5 +1,5 @@
 import { Command, Option } from "commander";
-import { LabelOperator } from "./labelcli.mjs"
+import { CliOperator } from "./labelcli.mjs"
 
 const program = new Command();
 
@@ -21,8 +21,8 @@ program.command("label")
       return
     }
 
-    const labelOperator = new LabelOperator(options)
-    labelOperator.run()
+    const cliOperator = new CliOperator(options)
+    cliOperator.run()
   });
 
 program.parse();
