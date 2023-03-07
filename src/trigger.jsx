@@ -12,7 +12,11 @@ export async function run(event, context) {
       const pageId = event["content"]["id"]
       console.info(`Page "${pageId}/${event["content"]["title"]}" is ${event["eventType"].split(":")[2]}`)
       const triggerOperator = new TriggerOperator()
-      triggerOperator.updateLabelsForPage(pageId)
+      try {
+        await triggerOperator.updateLabelsForPage(pageId)
+      } catch (error) {
+        console.error(error)
+      }
     }
   }
 }
@@ -23,7 +27,7 @@ class TriggerOperator extends LabelOperator {
   }
 
   async requestConfluence(method, path, expectedCode, body = {}) {
-    const routeUrl = route`${this.baseUrl}${path}`
+    const routeUrl = route(`${this.baseUrl}${path}`)
     console.debug(`${method}: ${routeUrl.value}`)
     const response = await api.asApp().requestConfluence(routeUrl, {
       method,
@@ -35,7 +39,7 @@ class TriggerOperator extends LabelOperator {
     if (response.status !== expectedCode) {
       return response.text()
         .then(errorMsg => {
-          throw new Error(`${method} ${url}
+          throw new Error(`${method} ${routeUrl.value}
 ->${response.status} ${response.statusText}
 ->${errorMsg}`);
         });

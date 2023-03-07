@@ -14,4 +14,4 @@ permissions:
   scopes:
     - read:confluence-content.summary
     - read:page:confluence
-    - write:label:confluence
+    - write:confluence-content
