@@ -1,4 +1,5 @@
 import slugify from 'slugify';
+import { DOMParser, XMLSerializer } from '@xmldom/xmldom'
 
 const TSD_LABEL_PREFIX = "tsd-"
 const TSD_PROPERTY_KEYS = ["Solution Type", "Industry", "Horizontal", "Cloud Platform", "Status"]
@@ -7,6 +8,10 @@ const TSD_KEY_PREFIXS = TSD_PROPERTY_KEYS.map(key => TSD_LABEL_PREFIX + slugify(
 export const METHOD_TYPES = {
   GET: { Accept: 'application/json', },
   POST: {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  },
+  PUT: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
   },
@@ -25,14 +30,116 @@ export class LabelOperator {
   run() {
     try {
       if (this.options.pageId) {
-        this.updateLabelsForPage(this.options.pageId)
+        this.updateIDsForPage(this.options.pageId)
       } else if (this.options.all) {
-        this.updateLabelsForAllPages()
+        //this.updateLabelsForAllPages()
       }
     } catch (error) {
       console.error(error)
     }
   }
+
+  updatePageProperties(bodyXhtml) {
+    const doc = new DOMParser().parseFromString(bodyXhtml, 'text/xhtml')
+    // find the "details" macro
+    const macros = doc.getElementsByTagName("ac:structured-macro")
+    let detailsMacro;
+    for (let i = 0; i < macros.length; i++) {
+      if (macros.item(i).getAttribute("ac:name") === "details") {
+        detailsMacro = macros.item(i)
+        break
+      }
+    }
+    if (!detailsMacro) {
+      throw new Error('There is NO macro "details" in this page!')
+    }
+
+    const idDefs = [{
+      srcKey: "SalesForce Account Link", descKey: "AccountID", regex: /\/([^\/]+)\/view/,
+    }, {
+      srcKey: "SalesForce Opportunity Link", descKey: "OpportunityID", regex: /\/([^\/]+)\/view/,
+    }]
+
+    // convert the <table> into properties
+    const tbody = getFirstElementByTagNames(detailsMacro, ["ac:rich-text-body", "table", "tbody"])
+    const trs = tbody.getElementsByTagName("tr")
+    let pageProperties = {}
+    for (let i = 0; i < trs.length; i++) {
+      const th = getFirstElementByTagNames(trs.item(i), "th")
+      const td = getFirstElementByTagNames(trs.item(i), "td")
+      const a = getFirstElementByTagNames(td, "a")
+      if (a) {
+        pageProperties[th.textContent] = a.getAttribute("href")
+      } else {
+        pageProperties[th.textContent] = td.textContent.trim()
+      }
+      for (const idDef of idDefs) {
+        if (idDef.descKey === th.textContent) {
+          idDef.td = td
+        }
+      }
+    }
+
+    // extract id from url
+    let updated = false
+    for (const idDef of idDefs) {
+      const id = getIdFromUrl(pageProperties[idDef.srcKey], idDef.regex)
+      if (!id) continue
+      if (pageProperties[idDef.descKey]) {
+        if (pageProperties[idDef.descKey] === id) continue
+        // remvoe existing value
+        removeAllChildElements(idDef.td)
+        const idDoc = new DOMParser().parseFromString(`<p>${id}</p>`, "text/xhtml")
+        idDef.td.appendChild(idDoc)
+      } else {
+        // insert
+        const trDoc = new DOMParser().parseFromString(`<tr><th><p><strong>${idDef.descKey}</strong></p></th><td><p>${id}</p></td></tr>`, "text/xhtml")
+        tbody.appendChild(trDoc.documentElement)
+      }
+      pageProperties[idDef.descKey] = id
+      updated = true
+    }
+
+    return { updated, pageProperties, updatedBodyXhtml: updated ? new XMLSerializer().serializeToString(doc) : undefined }
+  }
+
+  async updateIDsForPage(pageId) {
+    const pageResp = await this.fetchPageContent(pageId);
+    const pageJson = await pageResp.json();
+    let bodyXhtml = pageJson.body.storage.value
+    if (!bodyXhtml.startsWith("<div")) {
+      bodyXhtml = "<div>" + bodyXhtml + "</div>"
+    }
+
+    const { updated, pageProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
+    console.info(updated)
+    console.info(pageProperties)
+
+    const bodyData = {
+      id: pageId,
+      status: "current",
+      title: pageJson.title,
+      spaceId: pageJson.spaceId,
+      body: {
+        representation: "storage",
+        value: updatedBodyXhtml,
+      },
+      version: {
+        number: pageJson.version.number + 1,
+        message: "Updated by SE Automation",
+      }
+    };
+    if (updated) {
+      await this.updatePage(pageId, bodyData)
+    }
+  }
+
+  async updatePage(pageId, bodyData) {
+    const path = `/api/v2/pages/${pageId}`
+    const response = await this.requestConfluence("PUT", path, 200, { body: JSON.stringify(bodyData) })
+    return await response.json()
+  }
+
 
   updateLabelsForAllPages() {
     const cql = 'space=AT and type=page and label=test and (label="se-opportunity" or label="se-tsd")'
@@ -144,4 +251,32 @@ function toLabelsBody(labels) {
   const out = []
   labels.forEach(name => out.push({ prefix: "global", name }));
   return out
+}
+
+function getFirstElementByTagNames(node, tags) {
+  var firstElement = node
+  if (typeof tags === "string") {
+    tags = [tags]
+  }
+  for (const tag of tags) {
+    const elements = node.getElementsByTagName(tag)
+    if (elements.length === 0) return undefined
+    firstElement = elements.item(0)
+  }
+  return firstElement
+}
+
+function getIdFromUrl(url, regex) {
+  const out = regex.exec(url)
+  if (out) {
+    return out[1]
+  } else {
+    return undefined
+  }
+}
+
+function removeAllChildElements(parent) {
+  while (parent.firstChild) {
+    parent.removeChild(parent.firstChild);
+  }
 }

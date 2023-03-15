@@ -15,3 +15,4 @@ permissions:
     - read:confluence-content.summary
     - read:page:confluence
     - write:confluence-content
+    - write:page:confluence

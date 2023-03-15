@@ -13,7 +13,7 @@ export async function run(event, context) {
       console.info(`Page "${pageId}/${event["content"]["title"]}" is ${event["eventType"].split(":")[2]}`)
       const triggerOperator = new TriggerOperator()
       try {
-        await triggerOperator.updateLabelsForPage(pageId)
+        await triggerOperator.updateIDsForPage(pageId)
       } catch (error) {
         console.error(error)
       }

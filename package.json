@@ -16,6 +16,7 @@
   "dependencies": {
     "@forge/api": "^2.11.0",
     "@forge/ui": "1.6.0",
+    "@xmldom/xmldom": "^0.8.6",
     "commander": "^10.0.0",
     "slugify": "^1.6.5"
   }
