@@ -55,10 +55,16 @@ export class LabelOperator {
   }
 
   async updateLabelsForPage(pageId) {
-    const response = await this.fetchPageContent(pageId);
-    const responseJson = await response.json();
-    console.info(`Title: ${responseJson.title}`);
-    const labels = analyzePropertiesAndLabels(responseJson);
+    const page = await this.fetchPageContent(pageId);
+    const pageJson = await page.json();
+    const labelsResp = await this.fetchLabels(pageId)
+    const labelsJson = await labelsResp.json()
+    console.info(`Title: ${pageJson.title}`);
+    if (!labelsJson.results.some(l => (l.name === 'se-tsd' || l.name === 'se-opportunity'))) {
+      console.error("This is not a valid TSD page!")
+      return
+    }
+    const labels = analyzePropertiesAndLabels(pageJson, labelsJson);
     return await Promise.all([this.addLabels(pageId, labels.labelsToAdd), this.removeLabels(pageId, labels.labelsToRemove)]);
   }
 
@@ -67,7 +73,12 @@ export class LabelOperator {
   }
 
   fetchPageContent(pageId) {
-    const path = `/rest/api/content/${pageId}?expand=metadata.labels,body.storage`
+    const path = `/api/v2/pages/${pageId}?body-format=storage`
+    return this.requestConfluence("GET", path, 200)
+  }
+
+  fetchLabels(pageId) {
+    const path = `/api/v2/pages/${pageId}/labels`
     return this.requestConfluence("GET", path, 200)
   }
 
@@ -114,17 +125,13 @@ function tsdPropertiesToLabels(xhtml) {
   return result
 }
 
-function analyzePropertiesAndLabels(responseJson) {
-  // extract existed labels
-  const labels = responseJson["metadata"]["labels"]["results"].map(item => item["label"])
-  if (!labels.includes('se-tsd') && !labels.includes('se-opportunity')) {
-    console.error("This is not a valid TSD page!")
-    return
-  }
-  const existedTSDLables = labels.filter(label => TSD_KEY_PREFIXS.some(prefix => label.startsWith(prefix)))
+function analyzePropertiesAndLabels(pageJson, labelsJson) {
+  const existedTSDLables = labelsJson.results
+    .map(l => l.name)
+    .filter(label => TSD_KEY_PREFIXS.some(prefix => label.startsWith(prefix)))
 
   // extract properties
-  const xhtml = responseJson["body"]["storage"]["value"]
+  const xhtml = pageJson.body.storage.value
   const targetLabels = tsdPropertiesToLabels(xhtml)
 
   const labelsToRemove = existedTSDLables.filter(label => !targetLabels.includes(label))
