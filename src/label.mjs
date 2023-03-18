@@ -32,7 +32,7 @@ export class LabelOperator {
       if (this.options.pageId) {
         this.updateIDsForPage(this.options.pageId)
       } else if (this.options.all) {
-        //this.updateLabelsForAllPages()
+        this.updateLabelsForAllPages()
       }
     } catch (error) {
       console.error(error)
@@ -135,17 +135,17 @@ export class LabelOperator {
   }
 
   async updatePage(pageId, bodyData) {
-    const path = `/api/v2/pages/${pageId}`
+    const path = `/wiki/api/v2/pages/${pageId}`
     const response = await this.requestConfluence("PUT", path, 200, { body: JSON.stringify(bodyData) })
     return await response.json()
   }
 
 
   updateLabelsForAllPages() {
-    const cql = 'space=AT and type=page and label=test and (label="se-opportunity" or label="se-tsd")'
-    let path = encodeURI(`/rest/api/content/search?cql=${cql}&limit=50`)
+    const cql = 'space=AT and type=page and (label="se-opportunity" or label="se-tsd")'
+    let path = encodeURI(`/wiki/rest/api/content/search?cql=${cql}&limit=50`)
     this.fetchAllPages(path)
-      .then(results => Promise.all(results.map(page => this.updateLabelsForPage(page.id))))
+      .then(results => { })
   }
 
   fetchAllPages(path, results = []) {
@@ -153,8 +153,9 @@ export class LabelOperator {
       .then(response => response.json())
       .then(responseJson => {
         const newResults = results.concat(responseJson.results)
+        console.info(responseJson._links)
         if (responseJson._links.next) {
-          return this.fetchAllPages(responseJson._links.next, newResults)
+          return this.fetchAllPages(responseJson._links.context + responseJson._links.next, newResults)
         } else {
           return newResults
         }
@@ -180,12 +181,12 @@ export class LabelOperator {
   }
 
   fetchPageContent(pageId) {
-    const path = `/api/v2/pages/${pageId}?body-format=storage`
+    const path = `/wiki/api/v2/pages/${pageId}?body-format=storage`
     return this.requestConfluence("GET", path, 200)
   }
 
   fetchLabels(pageId) {
-    const path = `/api/v2/pages/${pageId}/labels`
+    const path = `/wiki/api/v2/pages/${pageId}/labels`
     return this.requestConfluence("GET", path, 200)
   }
 
@@ -193,14 +194,14 @@ export class LabelOperator {
     console.info("labelsToAdd:", JSON.stringify(labelsToAdd))
     if (labelsToAdd.length === 0) { return }
     const bodyData = toLabelsBody(labelsToAdd)
-    const path = `/rest/api/content/${pageId}/label`
+    const path = `/wiki/rest/api/content/${pageId}/label`
     return this.requestConfluence("POST", path, 200, { body: JSON.stringify(bodyData) })
   }
 
   removeLabels(pageId, labelsToRemove) {
     console.info("labelsToRemove:", JSON.stringify(labelsToRemove))
     return Promise.all(labelsToRemove.map(label => {
-      const path = `/rest/api/content/${pageId}/label/${label}`
+      const path = `/wiki/rest/api/content/${pageId}/label/${label}`
       return this.requestConfluence("DELETE", path, 204)
     }))
   }

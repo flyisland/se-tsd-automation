@@ -6,7 +6,7 @@ export class CliOperator extends LabelOperator {
   init(options) {
     this.options = options
 
-    this.baseUrl = `https://${options.domain}.atlassian.net/wiki`
+    this.baseUrl = `https://${options.domain}.atlassian.net/`
     this.Authorization = `Basic ${Buffer.from(`${options.forgeEmail}:${options.forgeApiToken}`).toString('base64')}`
     this.agent = new https.Agent({ keepAlive: true })
   }

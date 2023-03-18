@@ -23,7 +23,7 @@ export async function run(event, context) {
 
 class TriggerOperator extends LabelOperator {
   init(options) {
-    this.baseUrl = `/wiki`
+    this.baseUrl = ""
   }
 
   async requestConfluence(method, path, expectedCode, body = {}) {
