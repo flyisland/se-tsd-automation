@@ -289,6 +289,7 @@ function analyzePropertiesAndLabels(pageProperties, labelsJson) {
   // extract properties
   const targetLabels = TSD_PROPERTY_KEYS
     .map(k => pageProperties[k])
+    .filter(v => v)
     .map(v => slugify(v, { lower: true, strict: true }))
   targetLabels.push(STATUS_PREFIX + slugify(pageProperties["Status"], { lower: true, strict: true }))
 
