@@ -30,7 +30,7 @@ export class LabelOperator {
   run() {
     try {
       if (this.options.pageId) {
-        this.updateIDsForPage(this.options.pageId)
+        this.updateIDAndLabelForPage(this.options.pageId)
       } else if (this.options.all) {
         this.updateLabelsForAllPages()
       }
@@ -39,6 +39,9 @@ export class LabelOperator {
     }
   }
 
+  // 1. extract page properties from the body in xhtml
+  // 2. extract IDs from Account and Opportunity urls
+  // 3. update the page properties <table> for new ID
   updatePageProperties(bodyXhtml) {
     const doc = new DOMParser().parseFromString(bodyXhtml, 'text/xhtml')
     // find the "details" macro
@@ -103,18 +106,16 @@ export class LabelOperator {
     return { updated, pageProperties, updatedBodyXhtml: updated ? new XMLSerializer().serializeToString(doc) : undefined }
   }
 
-  async updateIDsForPage(pageId) {
+  async updateIDAndLabelForPage(pageId) {
     const pageResp = await this.fetchPageContent(pageId);
     const pageJson = await pageResp.json();
     let bodyXhtml = pageJson.body.storage.value
     if (!bodyXhtml.startsWith("<div")) {
+      // make sure the body is a valid xhtml string
       bodyXhtml = "<div>" + bodyXhtml + "</div>"
     }
 
     const { updated, pageProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
-    console.info(updated)
-    console.info(pageProperties)
-
     const bodyData = {
       id: pageId,
       status: "current",
@@ -173,6 +174,8 @@ export class LabelOperator {
       return
     }
     const labels = analyzePropertiesAndLabels(pageJson, labelsJson);
+
+
     return await Promise.all([this.addLabels(pageId, labels.labelsToAdd), this.removeLabels(pageId, labels.labelsToRemove)]);
   }
 
