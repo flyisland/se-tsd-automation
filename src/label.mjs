@@ -282,16 +282,18 @@ const TSD_PROPERTY_VALUES = [
 ].map(v => slugify(v, { lower: true, strict: true }))
 const STATUS_PREFIX = "status-"
 function analyzePropertiesAndLabels(pageProperties, labelsJson) {
-  const existedTSDLables = labelsJson.results
-    .map(l => l.name)
-    .filter(label => label.startsWith(STATUS_PREFIX) || TSD_PROPERTY_VALUES.includes(label))
-
-  // extract properties
   const targetLabels = TSD_PROPERTY_KEYS
     .map(k => pageProperties[k])
     .filter(v => v)
     .map(v => slugify(v, { lower: true, strict: true }))
-  targetLabels.push(STATUS_PREFIX + slugify(pageProperties["Status"], { lower: true, strict: true }))
+  if (pageProperties["Status"]) {
+    targetLabels.push(STATUS_PREFIX + slugify(pageProperties["Status"], { lower: true, strict: true }))
+  }
+
+  const existedTSDLables = labelsJson.results
+    .map(l => l.name)
+    .filter(label => label.startsWith(STATUS_PREFIX) || TSD_PROPERTY_VALUES.includes(label)
+      || targetLabels.includes(label))
 
   const labelsToRemove = existedTSDLables.filter(label => !targetLabels.includes(label))
   const labelsToAdd = targetLabels.filter(label => !existedTSDLables.includes(label))
