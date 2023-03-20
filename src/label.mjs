@@ -1,10 +1,6 @@
 import slugify from 'slugify';
 import { DOMParser, XMLSerializer } from '@xmldom/xmldom'
 
-const TSD_LABEL_PREFIX = "tsd-"
-const TSD_PROPERTY_KEYS = ["Solution Type", "Industry", "Horizontal", "Cloud Platform", "Status"]
-const TSD_KEY_PREFIXS = TSD_PROPERTY_KEYS.map(key => TSD_LABEL_PREFIX + slugify(key, { lower: true, strict: true }))
-
 export const METHOD_TYPES = {
   GET: { Accept: 'application/json', },
   POST: {
@@ -107,6 +103,13 @@ export class LabelOperator {
   }
 
   async updateIDAndLabelForPage(pageId) {
+    const labelsResp = await this.fetchLabels(pageId)
+    const labelsJson = await labelsResp.json()
+    if (!labelsJson.results.some(l => (l.name === 'se-tsd' || l.name === 'se-opportunity'))) {
+      console.error("This is not a valid TSD page!")
+      return
+    }
+
     const pageResp = await this.fetchPageContent(pageId);
     const pageJson = await pageResp.json();
     let bodyXhtml = pageJson.body.storage.value
@@ -114,7 +117,6 @@ export class LabelOperator {
       // make sure the body is a valid xhtml string
       bodyXhtml = "<div>" + bodyXhtml + "</div>"
     }
-
     const { updated, pageProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
     const bodyData = {
       id: pageId,
@@ -133,6 +135,11 @@ export class LabelOperator {
     if (updated) {
       await this.updatePage(pageId, bodyData)
     }
+    console.info(updated)
+    console.info(pageProperties)
+
+    const { labelsToRemove, labelsToAdd } = analyzePropertiesAndLabels(pageProperties, labelsJson);
+    await Promise.all([this.addLabels(pageId, labelsToAdd), this.removeLabels(pageId, labelsToRemove)])
   }
 
   async updatePage(pageId, bodyData) {
@@ -236,14 +243,54 @@ function tsdPropertiesToLabels(xhtml) {
   return result
 }
 
-function analyzePropertiesAndLabels(pageJson, labelsJson) {
+const TSD_PROPERTY_KEYS = ["Solution Type", "Industry", "Horizontal", "Cloud Platform"]
+const TSD_PROPERTY_VALUES = [
+  "Event Driven Integration",
+  "High Performance",
+  "IOT/IIOT",
+  "Kafka/Competition",
+  "App Modernisation",
+  "SAP",
+  "Boomi",
+  "Analytics/Steaming",
+  "Capital Markets",
+  "Retail Banking",
+  "Telco",
+  "Manufacturing CPG / Pharma",
+  "Manufacturing Hi Tech",
+  "Retail",
+  "Transportation",
+  "Aviation",
+  "Resource",
+  "Energy",
+  "Education",
+  "Insurance / Superannuation / Pension",
+  "Government",
+  "AWS",
+  "GCP",
+  "Azure",
+  "TenCent",
+  "Hybrid",
+  "On Prem",
+  "Other",
+  "Software",
+  "Cloud Service",
+  "Cloud Platform",
+  "Event Portal",
+  "Appliance",
+  "Hybrid",
+].map(v => slugify(v, { lower: true, strict: true }))
+const STATUS_PREFIX = "status-"
+function analyzePropertiesAndLabels(pageProperties, labelsJson) {
   const existedTSDLables = labelsJson.results
     .map(l => l.name)
-    .filter(label => TSD_KEY_PREFIXS.some(prefix => label.startsWith(prefix)))
+    .filter(label => label.startsWith(STATUS_PREFIX) || TSD_PROPERTY_VALUES.includes(label))
 
   // extract properties
-  const xhtml = pageJson.body.storage.value
-  const targetLabels = tsdPropertiesToLabels(xhtml)
+  const targetLabels = TSD_PROPERTY_KEYS
+    .map(k => pageProperties[k])
+    .map(v => slugify(v, { lower: true, strict: true }))
+  targetLabels.push(STATUS_PREFIX + slugify(pageProperties["Status"], { lower: true, strict: true }))
 
   const labelsToRemove = existedTSDLables.filter(label => !targetLabels.includes(label))
   const labelsToAdd = targetLabels.filter(label => !existedTSDLables.includes(label))
