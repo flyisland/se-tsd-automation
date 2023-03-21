@@ -44,9 +44,9 @@ export class LabelOperator {
     }
 
     const idDefs = [{
-      srcKey: "SalesForce Account Link", descKey: "AccountID", regex: /\/([^\/]+)\/view/,
+      keyStartsWith: "SalesForce Account", descKey: "AccountID", regex: /\/([^\/]+)\/view/,
     }, {
-      srcKey: "SalesForce Opportunity Link", descKey: "OpportunityID", regex: /\/([^\/]+)\/view/,
+      keyStartsWith: "SalesForce Opportunity", descKey: "OpportunityID", regex: /\/([^\/]+)\/view/,
     }]
 
     // convert the <table> into properties
@@ -54,15 +54,19 @@ export class LabelOperator {
     const trs = tbody.getElementsByTagName("tr")
     for (let i = 0; i < trs.length; i++) {
       const th = getFirstElementByTagNames(trs.item(i), "th")
+      const key = th.textContent
       const td = getFirstElementByTagNames(trs.item(i), "td")
       const a = getFirstElementByTagNames(td, "a")
       if (a) {
-        pageProperties[th.textContent] = a.getAttribute("href")
+        pageProperties[key] = a.getAttribute("href")
       } else {
-        pageProperties[th.textContent] = td.textContent.trim()
+        pageProperties[key] = td.textContent.trim()
       }
       for (const idDef of idDefs) {
-        if (idDef.descKey === th.textContent) {
+        if (key.startsWith(idDef.keyStartsWith)) {
+          idDef.srcKey = key
+        }
+        if (idDef.descKey === key) {
           idDef.td = td
         }
       }
@@ -71,6 +75,8 @@ export class LabelOperator {
     // extract id from url
     const newProperties = {}
     for (const idDef of idDefs) {
+      if (!idDef.srcKey) continue
+      if (!pageProperties[idDef.srcKey]) continue
       const id = getIdFromUrl(pageProperties[idDef.srcKey], idDef.regex)
       if (!id) continue
       if (pageProperties[idDef.descKey]) {
