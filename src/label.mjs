@@ -30,15 +30,15 @@ export class LabelOperator {
     const doc = new DOMParser().parseFromString(bodyXhtml, 'text/xhtml')
     // find the "details" macro
     const macros = doc.getElementsByTagName("ac:structured-macro")
-    let detailsMacro;
+    let detailsMacros = [];
     for (let i = 0; i < macros.length; i++) {
       if (macros.item(i).getAttribute("ac:name") === "details") {
-        detailsMacro = macros.item(i)
-        break
+        detailsMacros.push(macros.item(i))
       }
     }
     const pageProperties = {}
-    if (!detailsMacro) {
+    const newProperties = {}
+    if (detailsMacros.length === 0) {
       // There is NO macro "details" in this page!
       return { pageProperties }
     }
@@ -50,48 +50,50 @@ export class LabelOperator {
     }]
 
     // convert the <table> into properties
-    const tbody = getFirstElementByTagNames(detailsMacro, ["ac:rich-text-body", "table", "tbody"])
-    const trs = tbody.getElementsByTagName("tr")
-    for (let i = 0; i < trs.length; i++) {
-      const th = getFirstElementByTagNames(trs.item(i), "th")
-      const key = th.textContent
-      const td = getFirstElementByTagNames(trs.item(i), "td")
-      const a = getFirstElementByTagNames(td, "a")
-      if (a) {
-        pageProperties[key] = a.getAttribute("href")
-      } else {
-        pageProperties[key] = td.textContent.trim()
-      }
-      for (const idDef of idDefs) {
-        if (key.startsWith(idDef.keyStartsWith)) {
-          idDef.srcKey = key
+    detailsMacros.forEach(detailsMacro => {
+      const tbody = getFirstElementByTagNames(detailsMacro, ["ac:rich-text-body", "table", "tbody"])
+      const trs = tbody.getElementsByTagName("tr")
+      for (let i = 0; i < trs.length; i++) {
+        const th = getFirstElementByTagNames(trs.item(i), "th")
+        const key = th.textContent
+        const td = getFirstElementByTagNames(trs.item(i), "td")
+        const a = getFirstElementByTagNames(td, "a")
+        if (a) {
+          pageProperties[key] = a.getAttribute("href")
+        } else {
+          pageProperties[key] = td.textContent.trim()
         }
-        if (idDef.descKey === key) {
-          idDef.td = td
+        for (const idDef of idDefs) {
+          if (key.startsWith(idDef.keyStartsWith)) {
+            idDef.srcKey = key
+          }
+          if (idDef.descKey === key) {
+            idDef.td = td
+          }
         }
       }
-    }
 
-    // extract id from url
-    const newProperties = {}
-    for (const idDef of idDefs) {
-      if (!idDef.srcKey) continue
-      if (!pageProperties[idDef.srcKey]) continue
-      const id = getIdFromUrl(pageProperties[idDef.srcKey], idDef.regex)
-      if (!id) continue
-      if (pageProperties[idDef.descKey]) {
-        if (pageProperties[idDef.descKey] === id) continue
-        // remvoe existing value
-        removeAllChildElements(idDef.td)
-        const idDoc = new DOMParser().parseFromString(`<p>${id}</p>`, "text/xhtml")
-        idDef.td.appendChild(idDoc)
-      } else {
-        // insert
-        const trDoc = new DOMParser().parseFromString(`<tr><th><p><strong>${idDef.descKey}</strong></p></th><td><p>${id}</p></td></tr>`, "text/xhtml")
-        tbody.appendChild(trDoc.documentElement)
+      // extract id from url
+      for (const idDef of idDefs) {
+        if (!idDef.srcKey) continue
+        if (!pageProperties[idDef.srcKey]) continue
+        const id = getIdFromUrl(pageProperties[idDef.srcKey], idDef.regex)
+        if (!id) continue
+        if (pageProperties[idDef.descKey]) {
+          if (pageProperties[idDef.descKey] === id) continue
+          // remvoe existing value
+          removeAllChildElements(idDef.td)
+          const idDoc = new DOMParser().parseFromString(`<p>${id}</p>`, "text/xhtml")
+          idDef.td.appendChild(idDoc)
+        } else {
+          // insert
+          const trDoc = new DOMParser().parseFromString(`<tr><th><p><strong>${idDef.descKey}</strong></p></th><td><p>${id}</p></td></tr>`, "text/xhtml")
+          tbody.appendChild(trDoc.documentElement)
+        }
+        newProperties[idDef.descKey] = id
       }
-      newProperties[idDef.descKey] = id
-    }
+    })
+
 
     return {
       pageProperties, newProperties,
