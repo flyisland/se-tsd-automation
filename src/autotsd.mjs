@@ -1,5 +1,5 @@
 import { Command, Option } from "commander";
-import { CliOperator } from "./labelcli.mjs"
+import { CliOperator } from "./updatecli.mjs"
 
 const program = new Command();
 

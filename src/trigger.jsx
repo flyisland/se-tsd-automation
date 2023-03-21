@@ -1,5 +1,5 @@
 import api, { route } from "@forge/api";
-import { UpdateOperator, METHOD_TYPES } from "./label.mjs"
+import { UpdateOperator, METHOD_TYPES } from "./update.mjs"
 
 export async function run(event, context) {
   if (!event) {

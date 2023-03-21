@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 import https from 'node:https';
-import { UpdateOperator, METHOD_TYPES } from "./label.mjs"
+import { UpdateOperator, METHOD_TYPES } from "./update.mjs"
 
 export class CliOperator extends UpdateOperator {
   init(options) {
