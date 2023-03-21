@@ -62,7 +62,7 @@ export class LabelOperator {
     // convert the <table> into properties
     const tbody = getFirstElementByTagNames(detailsMacro, ["ac:rich-text-body", "table", "tbody"])
     const trs = tbody.getElementsByTagName("tr")
-    let pageProperties = {}
+    const pageProperties = {}
     for (let i = 0; i < trs.length; i++) {
       const th = getFirstElementByTagNames(trs.item(i), "th")
       const td = getFirstElementByTagNames(trs.item(i), "td")
@@ -81,6 +81,7 @@ export class LabelOperator {
 
     // extract id from url
     let updated = false
+    const newProperties = {}
     for (const idDef of idDefs) {
       const id = getIdFromUrl(pageProperties[idDef.srcKey], idDef.regex)
       if (!id) continue
@@ -95,11 +96,11 @@ export class LabelOperator {
         const trDoc = new DOMParser().parseFromString(`<tr><th><p><strong>${idDef.descKey}</strong></p></th><td><p>${id}</p></td></tr>`, "text/xhtml")
         tbody.appendChild(trDoc.documentElement)
       }
-      pageProperties[idDef.descKey] = id
+      newProperties[idDef.descKey] = id
       updated = true
     }
 
-    return { updated, pageProperties, updatedBodyXhtml: updated ? new XMLSerializer().serializeToString(doc) : undefined }
+    return { updated, pageProperties, newProperties, updatedBodyXhtml: updated ? new XMLSerializer().serializeToString(doc) : undefined }
   }
 
   async updateIDAndLabelForPage(pageId) {
@@ -117,7 +118,7 @@ export class LabelOperator {
       // make sure the body is a valid xhtml string
       bodyXhtml = "<div>" + bodyXhtml + "</div>"
     }
-    const { updated, pageProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
+    const { updated, pageProperties, newProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
     const bodyData = {
       id: pageId,
       status: "current",
@@ -137,6 +138,7 @@ export class LabelOperator {
     }
     console.info(updated)
     console.info(pageProperties)
+    console.info(newProperties)
 
     const { labelsToRemove, labelsToAdd } = analyzePropertiesAndLabels(pageProperties, labelsJson);
     await Promise.all([this.addLabels(pageId, labelsToAdd), this.removeLabels(pageId, labelsToRemove)])
@@ -153,7 +155,7 @@ export class LabelOperator {
     const cql = 'space=AT and type=page and (label="se-opportunity" or label="se-tsd")'
     let path = encodeURI(`/wiki/rest/api/content/search?cql=${cql}&limit=50`)
     this.fetchAllPages(path)
-      .then(results => { })
+      .then(results => { }) // todo, call updateIDAndLabelForPage() for each page
   }
 
   fetchAllPages(path, results = []) {
@@ -168,22 +170,6 @@ export class LabelOperator {
           return newResults
         }
       })
-  }
-
-  async updateLabelsForPage(pageId) {
-    const page = await this.fetchPageContent(pageId);
-    const pageJson = await page.json();
-    const labelsResp = await this.fetchLabels(pageId)
-    const labelsJson = await labelsResp.json()
-    console.info(`Title: ${pageJson.title}`);
-    if (!labelsJson.results.some(l => (l.name === 'se-tsd' || l.name === 'se-opportunity'))) {
-      console.error("This is not a valid TSD page!")
-      return
-    }
-    const labels = analyzePropertiesAndLabels(pageJson, labelsJson);
-
-
-    return await Promise.all([this.addLabels(pageId, labels.labelsToAdd), this.removeLabels(pageId, labels.labelsToRemove)]);
   }
 
   async requestConfluence(method, path, expectedCode, body = {}) {
@@ -215,32 +201,6 @@ export class LabelOperator {
       return this.requestConfluence("DELETE", path, 204)
     }))
   }
-}
-
-function tsdPropertiesToLabels(xhtml) {
-  var result = [];
-  const macroRegex = /<ac:structured-macro ac:name="details"[^>]*>(.*?)<\/ac:structured-macro>/gis
-  const trRegex = /<tr[^>]*>(.*?)<\/tr>/gis;
-  const thRegex = /<th[^>]*>(.*?)<\/th>/i;
-  const tdRegex = /<td[^>]*>(.*?)<\/td>/i;
-  const allTagsRegex = /(<([^>]+)>)/gi
-
-  for (const macro of xhtml.match(macroRegex)) {
-    for (const row of macro.match(trRegex)) {
-      var key, value;
-      var match = thRegex.exec(row)
-      if (match) {
-        key = match[0].replace(allTagsRegex, "").trim()
-        if (key.length === 0) { continue }
-        if (!TSD_PROPERTY_KEYS.includes(key)) { continue }
-      } else { continue }
-      var match = tdRegex.exec(row)
-      if (match) { value = match[0].replace(allTagsRegex, "").trim() } else { continue }
-      result.push(TSD_LABEL_PREFIX + slugify(key, { lower: true, strict: true }) + "-" + slugify(value, { lower: true, strict: true }))
-    }
-  }
-
-  return result
 }
 
 const TSD_PROPERTY_KEYS = ["Solution Type", "Industry", "Horizontal", "Cloud Platform"]
@@ -284,7 +244,7 @@ const STATUS_PREFIX = "status-"
 function analyzePropertiesAndLabels(pageProperties, labelsJson) {
   const targetLabels = TSD_PROPERTY_KEYS
     .map(k => pageProperties[k])
-    .filter(v => v)
+    .filter(v => v) // filter out empty properties
     .map(v => slugify(v, { lower: true, strict: true }))
   if (pageProperties["Status"]) {
     targetLabels.push(STATUS_PREFIX + slugify(pageProperties["Status"], { lower: true, strict: true }))
@@ -292,7 +252,8 @@ function analyzePropertiesAndLabels(pageProperties, labelsJson) {
 
   const existedTSDLables = labelsJson.results
     .map(l => l.name)
-    .filter(label => label.startsWith(STATUS_PREFIX) || TSD_PROPERTY_VALUES.includes(label)
+    .filter(label => label.startsWith(STATUS_PREFIX)
+      || TSD_PROPERTY_VALUES.includes(label)
       || targetLabels.includes(label))
 
   const labelsToRemove = existedTSDLables.filter(label => !targetLabels.includes(label))
