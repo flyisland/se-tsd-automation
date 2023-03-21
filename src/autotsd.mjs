@@ -13,6 +13,7 @@ program.command("label")
   .addOption(new Option("-u, --forge-email <forgeEmail>", "the email address associated with your Atlassian account").env("FORGE_EMAIL"))
   .addOption(new Option("-k, --forge-api-token <forgeApiToken>", "your Atlassian API token").env("FORGE_API_TOKEN"))
   .option("-d, --domain <domain>", "Confluence domain name, for example, your-domain.atlassian.net", "sol-jira")
+  .option("-s, --space <space>", "The sapce you want to work on", "AT")
   .option("-p, --page-id <pageId>", "Page Id")
   .addOption(new Option("--all", "Perform the automation on all pages").conflicts("pageId"))
   .action((options) => {

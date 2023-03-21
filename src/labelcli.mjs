@@ -7,6 +7,7 @@ export class CliOperator extends LabelOperator {
     this.options = options
 
     this.baseUrl = `https://${options.domain}.atlassian.net/`
+    this.space = options.space
     this.Authorization = `Basic ${Buffer.from(`${options.forgeEmail}:${options.forgeApiToken}`).toString('base64')}`
     this.agent = new https.Agent({ keepAlive: true })
   }
@@ -33,5 +34,65 @@ export class CliOperator extends LabelOperator {
         });
     }
     return response;
+  }
+
+  run() {
+    try {
+      if (this.options.pageId) {
+        this.updateIDAndLabelForPage(this.options.pageId)
+      } else if (this.options.all) {
+        this.updateLabelsForAllPages()
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  updateLabelsForAllPages() {
+    const cql = `space=${this.space} and type=page and (label="se-opportunity" or label="se-tsd")`
+    let path = encodeURI(`/wiki/rest/api/content/search?cql=${cql}&limit=50`)
+    this.fetchAllPages(path)
+      .then(results => results.map(
+        result => {
+          return {
+            id: result.id,
+            title: result.title,
+            webui: this.baseUrl + "wiki" + result._links.webui,
+          }
+        }
+      )) // todo, call updateIDAndLabelForPage() for each page
+      .then(pages => pages.forEach(page => {
+        this.printProperties(page)
+      }))
+  }
+
+  async printProperties(page) {
+    const pageResp = await this.fetchPageContent(page.id);
+    const pageJson = await pageResp.json();
+    let bodyXhtml = pageJson.body.storage.value
+    if (!bodyXhtml.startsWith("<div")) {
+      // make sure the body is a valid xhtml string
+      bodyXhtml = "<div>" + bodyXhtml + "</div>"
+    }
+    console.info("-".repeat(20))
+    console.info(page)
+    const { updated, pageProperties, newProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
+    console.info(updated)
+    console.info(pageProperties)
+    console.info(newProperties)
+  }
+
+
+  fetchAllPages(path, results = []) {
+    return this.requestConfluence("GET", path, 200)
+      .then(response => response.json())
+      .then(responseJson => {
+        const newResults = results.concat(responseJson.results)
+        if (responseJson._links.next) {
+          return this.fetchAllPages(responseJson._links.context + responseJson._links.next, newResults)
+        } else {
+          return newResults
+        }
+      })
   }
 }

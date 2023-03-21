@@ -23,18 +23,6 @@ export class LabelOperator {
     console.debug(`WARN: init() is called with ${options}`)
   }
 
-  run() {
-    try {
-      if (this.options.pageId) {
-        this.updateIDAndLabelForPage(this.options.pageId)
-      } else if (this.options.all) {
-        this.updateLabelsForAllPages()
-      }
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
   // 1. extract page properties from the body in xhtml
   // 2. extract IDs from Account and Opportunity urls
   // 3. update the page properties <table> for new ID
@@ -148,28 +136,6 @@ export class LabelOperator {
     const path = `/wiki/api/v2/pages/${pageId}`
     const response = await this.requestConfluence("PUT", path, 200, { body: JSON.stringify(bodyData) })
     return await response.json()
-  }
-
-
-  updateLabelsForAllPages() {
-    const cql = 'space=AT and type=page and (label="se-opportunity" or label="se-tsd")'
-    let path = encodeURI(`/wiki/rest/api/content/search?cql=${cql}&limit=50`)
-    this.fetchAllPages(path)
-      .then(results => { }) // todo, call updateIDAndLabelForPage() for each page
-  }
-
-  fetchAllPages(path, results = []) {
-    return this.requestConfluence("GET", path, 200)
-      .then(response => response.json())
-      .then(responseJson => {
-        const newResults = results.concat(responseJson.results)
-        console.info(responseJson._links)
-        if (responseJson._links.next) {
-          return this.fetchAllPages(responseJson._links.context + responseJson._links.next, newResults)
-        } else {
-          return newResults
-        }
-      })
   }
 
   async requestConfluence(method, path, expectedCode, body = {}) {
