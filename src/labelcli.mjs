@@ -74,9 +74,12 @@ export class CliOperator extends LabelOperator {
       // make sure the body is a valid xhtml string
       bodyXhtml = "<div>" + bodyXhtml + "</div>"
     }
+    const { pageProperties, newProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
+    if (newProperties && Object.keys(newProperties).length === 2) return
+    const all = { ...pageProperties, ...newProperties }
+    if (all["AccountID"] && all["OpportunityID"]) return
     console.info("-".repeat(20))
     console.info(page)
-    const { pageProperties, newProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
     console.info("pageProperties:")
     console.info(pageProperties)
     console.info("newProperties:")
