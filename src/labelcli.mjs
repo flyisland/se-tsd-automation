@@ -76,9 +76,10 @@ export class CliOperator extends LabelOperator {
     }
     console.info("-".repeat(20))
     console.info(page)
-    const { updated, pageProperties, newProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
-    console.info(updated)
+    const { pageProperties, newProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
+    console.info("pageProperties:")
     console.info(pageProperties)
+    console.info("newProperties:")
     console.info(newProperties)
   }
 

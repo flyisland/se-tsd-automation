@@ -37,8 +37,10 @@ export class LabelOperator {
         break
       }
     }
+    const pageProperties = {}
     if (!detailsMacro) {
-      throw new Error('There is NO macro "details" in this page!')
+      // There is NO macro "details" in this page!
+      return { pageProperties }
     }
 
     const idDefs = [{
@@ -50,7 +52,6 @@ export class LabelOperator {
     // convert the <table> into properties
     const tbody = getFirstElementByTagNames(detailsMacro, ["ac:rich-text-body", "table", "tbody"])
     const trs = tbody.getElementsByTagName("tr")
-    const pageProperties = {}
     for (let i = 0; i < trs.length; i++) {
       const th = getFirstElementByTagNames(trs.item(i), "th")
       const td = getFirstElementByTagNames(trs.item(i), "td")
@@ -68,7 +69,6 @@ export class LabelOperator {
     }
 
     // extract id from url
-    let updated = false
     const newProperties = {}
     for (const idDef of idDefs) {
       const id = getIdFromUrl(pageProperties[idDef.srcKey], idDef.regex)
@@ -85,10 +85,12 @@ export class LabelOperator {
         tbody.appendChild(trDoc.documentElement)
       }
       newProperties[idDef.descKey] = id
-      updated = true
     }
 
-    return { updated, pageProperties, newProperties, updatedBodyXhtml: updated ? new XMLSerializer().serializeToString(doc) : undefined }
+    return {
+      pageProperties, newProperties,
+      updatedBodyXhtml: Object.keys(newProperties).length > 0 ? new XMLSerializer().serializeToString(doc) : undefined
+    }
   }
 
   async updateIDAndLabelForPage(pageId) {
@@ -106,30 +108,34 @@ export class LabelOperator {
       // make sure the body is a valid xhtml string
       bodyXhtml = "<div>" + bodyXhtml + "</div>"
     }
-    const { updated, pageProperties, newProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
-    const bodyData = {
-      id: pageId,
-      status: "current",
-      title: pageJson.title,
-      spaceId: pageJson.spaceId,
-      body: {
-        representation: "storage",
-        value: updatedBodyXhtml,
-      },
-      version: {
-        number: pageJson.version.number + 1,
-        message: "Updated by SE Automation",
-      }
-    };
-    if (updated) {
+    const { pageProperties, newProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
+    if (updatedBodyXhtml) {
+      const bodyData = {
+        id: pageId,
+        status: "current",
+        title: pageJson.title,
+        spaceId: pageJson.spaceId,
+        body: {
+          representation: "storage",
+          value: updatedBodyXhtml,
+        },
+        version: {
+          number: pageJson.version.number + 1,
+          message: "Updated by SE Automation",
+        }
+      };
       await this.updatePage(pageId, bodyData)
     }
-    console.info(updated)
+    console.info("pageProperties:")
     console.info(pageProperties)
+    console.info("newProperties:")
     console.info(newProperties)
 
-    const { labelsToRemove, labelsToAdd } = analyzePropertiesAndLabels(pageProperties, labelsJson);
-    await Promise.all([this.addLabels(pageId, labelsToAdd), this.removeLabels(pageId, labelsToRemove)])
+    if (Object.keys(pageProperties).length > 0) {
+      // found valid macro "details" in this page
+      const { labelsToRemove, labelsToAdd } = analyzePropertiesAndLabels(pageProperties, labelsJson);
+      await Promise.all([this.addLabels(pageId, labelsToAdd), this.removeLabels(pageId, labelsToRemove)])
+    }
   }
 
   async updatePage(pageId, bodyData) {
