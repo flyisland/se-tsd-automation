@@ -14,7 +14,7 @@ export const METHOD_TYPES = {
   DELETE: {},
 }
 
-export class LabelOperator {
+export class UpdateOperator {
   constructor(options) {
     this.init(options)
   }

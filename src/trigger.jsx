@@ -1,5 +1,5 @@
 import api, { route } from "@forge/api";
-import { LabelOperator, METHOD_TYPES } from "./label.mjs"
+import { UpdateOperator, METHOD_TYPES } from "./label.mjs"
 
 export async function run(event, context) {
   if (!event) {
@@ -13,7 +13,7 @@ export async function run(event, context) {
       console.info(`Page "${pageId}/${event["content"]["title"]}" is ${event["eventType"].split(":")[2]}`)
       const triggerOperator = new TriggerOperator()
       try {
-        await triggerOperator.updateIDsForPage(pageId)
+        await triggerOperator.updateIDAndLabelForPage(pageId)
       } catch (error) {
         console.error(error)
       }
@@ -21,7 +21,7 @@ export async function run(event, context) {
   }
 }
 
-class TriggerOperator extends LabelOperator {
+class TriggerOperator extends UpdateOperator {
   init(options) {
     this.baseUrl = ""
   }
