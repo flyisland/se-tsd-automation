@@ -6,10 +6,7 @@ const program = new Command();
 program
   .name("autotsd")
   .description("CLI to perform automation on TSD pages")
-  .version("0.0.1");
-
-program.command("label")
-  .description("Sync labels on a page to its TSD properties")
+  .version("0.0.1")
   .addOption(new Option("-u, --forge-email <forgeEmail>", "the email address associated with your Atlassian account").env("FORGE_EMAIL"))
   .addOption(new Option("-k, --forge-api-token <forgeApiToken>", "your Atlassian API token").env("FORGE_API_TOKEN"))
   .option("-d, --domain <domain>", "Confluence domain name, for example, your-domain.atlassian.net", "sol-jira")
