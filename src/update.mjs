@@ -116,6 +116,7 @@ export class UpdateOperator {
       // make sure the body is a valid xhtml string
       bodyXhtml = "<div>" + bodyXhtml + "</div>"
     }
+    console.log(`page: ${pageId} -> ${pageJson.title}`)
     const { pageProperties, newProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
     if (updatedBodyXhtml) {
       const bodyData = {
@@ -129,20 +130,27 @@ export class UpdateOperator {
         },
         version: {
           number: pageJson.version.number + 1,
-          message: "Updated by SE Automation",
+          message: "Updated by TSD Automation",
         }
       };
-      await this.updatePage(pageId, bodyData)
+      if (this.executeMode) {
+        await this.updatePage(pageId, bodyData)
+      }
+      console.info("newProperties: " + JSON.stringify(newProperties))
     }
-    console.info("pageProperties:")
-    console.info(pageProperties)
-    console.info("newProperties:")
-    console.info(newProperties)
 
     if (Object.keys(pageProperties).length > 0) {
       // found valid macro "details" in this page
       const { labelsToRemove, labelsToAdd } = analyzePropertiesAndLabels(pageProperties, labelsJson);
-      await Promise.all([this.addLabels(pageId, labelsToAdd), this.removeLabels(pageId, labelsToRemove)])
+      if (this.executeMode) {
+        await Promise.all([this.addLabels(pageId, labelsToAdd), this.removeLabels(pageId, labelsToRemove)])
+      }
+      if (labelsToRemove.length > 0) {
+        console.info("labelsToRemove:", JSON.stringify(labelsToRemove))
+      }
+      if (labelsToAdd.length > 0) {
+        console.info("labelsToAdd:", JSON.stringify(labelsToAdd))
+      }
     }
   }
 
@@ -167,7 +175,6 @@ export class UpdateOperator {
   }
 
   addLabels(pageId, labelsToAdd) {
-    console.info("labelsToAdd:", JSON.stringify(labelsToAdd))
     if (labelsToAdd.length === 0) { return }
     const bodyData = toLabelsBody(labelsToAdd)
     const path = `/wiki/rest/api/content/${pageId}/label`
@@ -175,7 +182,6 @@ export class UpdateOperator {
   }
 
   removeLabels(pageId, labelsToRemove) {
-    console.info("labelsToRemove:", JSON.stringify(labelsToRemove))
     return Promise.all(labelsToRemove.map(label => {
       const path = `/wiki/rest/api/content/${pageId}/label/${label}`
       return this.requestConfluence("DELETE", path, 204)

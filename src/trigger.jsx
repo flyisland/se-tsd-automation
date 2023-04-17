@@ -24,6 +24,7 @@ export async function run(event, context) {
 class TriggerOperator extends UpdateOperator {
   init(options) {
     this.baseUrl = ""
+    this.executeMode = true // trgger will always run in execute mode
   }
 
   async requestConfluence(method, path, expectedCode, body = {}) {

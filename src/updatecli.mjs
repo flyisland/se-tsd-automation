@@ -5,6 +5,7 @@ import { UpdateOperator, METHOD_TYPES } from "./update.mjs"
 export class CliOperator extends UpdateOperator {
   init(options) {
     this.options = options
+    this.executeMode = options.execute
 
     this.baseUrl = `https://${options.domain}.atlassian.net/`
     this.space = options.space
@@ -60,32 +61,11 @@ export class CliOperator extends UpdateOperator {
             webui: this.baseUrl + "wiki" + result._links.webui,
           }
         }
-      )) // todo, call updateIDAndLabelForPage() for each page
-      .then(pages => pages.forEach(page => {
-        this.printProperties(page)
+      ))
+      .then(pages => pages.forEach(async page => {
+        await this.updateIDAndLabelForPage(page.id)
       }))
   }
-
-  async printProperties(page) {
-    const pageResp = await this.fetchPageContent(page.id);
-    const pageJson = await pageResp.json();
-    let bodyXhtml = pageJson.body.storage.value
-    if (!bodyXhtml.startsWith("<div")) {
-      // make sure the body is a valid xhtml string
-      bodyXhtml = "<div>" + bodyXhtml + "</div>"
-    }
-    const { pageProperties, newProperties, updatedBodyXhtml } = this.updatePageProperties(bodyXhtml)
-    if (newProperties && Object.keys(newProperties).length === 2) return
-    const all = { ...pageProperties, ...newProperties }
-    if (all["AccountID"] && all["OpportunityID"]) return
-    console.info("-".repeat(20))
-    console.info(page)
-    console.info("pageProperties:")
-    console.info(pageProperties)
-    console.info("newProperties:")
-    console.info(newProperties)
-  }
-
 
   fetchAllPages(path, results = []) {
     return this.requestConfluence("GET", path, 200)

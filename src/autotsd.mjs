@@ -13,6 +13,7 @@ program
   .option("-s, --space <space>", "The sapce you want to work on", "AT")
   .option("-p, --page-id <pageId>", "Page Id")
   .addOption(new Option("--all", "Perform the automation on all pages").conflicts("pageId"))
+  .option("--execute", "This option explicitly indicates that the program should execute the commands instead of just simulating them in dry-run mode.")
   .action((options) => {
     if (!options.pageId && !options.all) {
       console.error("Either --page-id or --all must be specified")
