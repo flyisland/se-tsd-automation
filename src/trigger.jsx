@@ -1,3 +1,4 @@
+import fetch from 'node-fetch';
 import api, { route } from "@forge/api";
 import { UpdateOperator, METHOD_TYPES } from "./update.mjs"
 
@@ -14,6 +15,7 @@ export async function run(event, context) {
       const triggerOperator = new TriggerOperator()
       try {
         await triggerOperator.updateIDAndLabelForPage(pageId)
+        await callLambda(pageId)
       } catch (error) {
         console.error(error)
       }
@@ -47,4 +49,20 @@ class TriggerOperator extends UpdateOperator {
     }
     return response;
   }
+}
+
+async function callLambda(pageId) {
+  const jsonData = JSON.stringify({ pageId });
+  const requestOpts = {
+    method: "POST",
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(jsonData),
+    },
+    body: jsonData,
+  }
+  const lambdaUrl = "https://xi4j4j1413.execute-api.us-east-1.amazonaws.com/produce"
+  const response = await fetch(lambdaUrl, requestOpts);
+  const result = await response.text()
+  console.info(`Call Lambda: status=${response.status}, result=${result}`)
 }

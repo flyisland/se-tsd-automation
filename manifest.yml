@@ -16,3 +16,7 @@ permissions:
     - read:page:confluence
     - write:confluence-content
     - write:page:confluence
+  external:
+    fetch:
+      backend:
+        - '*.execute-api.us-east-1.amazonaws.com'
