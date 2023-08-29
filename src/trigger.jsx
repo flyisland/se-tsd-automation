@@ -14,8 +14,10 @@ export async function run(event, context) {
       console.info(`Page "${pageId}/${event["content"]["title"]}" is ${event["eventType"].split(":")[2]}`)
       const triggerOperator = new TriggerOperator()
       try {
-        await triggerOperator.updateIDAndLabelForPage(pageId)
-        await callLambda(pageId)
+        const isValidTSDPage = await triggerOperator.updateIDAndLabelForPage(pageId)
+        if (isValidTSDPage) {
+          await callLambda(pageId)
+        }
       } catch (error) {
         console.error(error)
       }

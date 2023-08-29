@@ -101,12 +101,13 @@ export class UpdateOperator {
     }
   }
 
+  // return boolean, to indicate whether this is a valid TSD page
   async updateIDAndLabelForPage(pageId) {
     const labelsResp = await this.fetchLabels(pageId)
     const labelsJson = await labelsResp.json()
     if (!labelsJson.results.some(l => (l.name === 'se-tsd' || l.name === 'se-opportunity'))) {
       console.error("This is not a valid TSD page!")
-      return
+      return false
     }
 
     const pageResp = await this.fetchPageContent(pageId);
@@ -152,6 +153,8 @@ export class UpdateOperator {
         console.info("labelsToAdd:", JSON.stringify(labelsToAdd))
       }
     }
+
+    return true
   }
 
   async updatePage(pageId, bodyData) {
